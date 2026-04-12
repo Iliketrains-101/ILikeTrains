@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/monika/.bun/bin/bun install:*)",
+      "Bash(/Users/monika/.bun/bin/bun run:*)",
+      "Bash(open:*)",
+      "Bash(/Users/monika/.bun/bin/bun x:*)",
+      "Bash(git:*)"
+    ]
+  }
+}
