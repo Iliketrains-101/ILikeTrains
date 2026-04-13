@@ -2,7 +2,9 @@
 
 A browser-based railroad building and train running game. Single player. Inspired by Transport Tycoon and model railway planning software. Built for fun.
 
-## Play
+**Play online: https://iliketrains101.vercel.app/**
+
+## Run locally
 
 ```
 npm install
