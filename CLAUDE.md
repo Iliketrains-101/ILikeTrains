@@ -31,10 +31,14 @@ docs/
 
 ## Dev Commands
 ```
-npm install
-npm run dev      # http://localhost:3000
-npm run build
+bun install
+bun run dev      # http://localhost:3000
+bun run build
 ```
+
+## Git Strategy
+- Push directly to `main` — no feature branches, no PRs
+- Remote: https://github.com/Iliketrains-101/ILikeTrains
 
 ## Current State (v0.1)
 - Scrollable tile grid
