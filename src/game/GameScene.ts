@@ -180,6 +180,18 @@ export class GameScene extends Phaser.Scene {
       this.trackLayer.add(L, r, [0, 2]);
       this.trackLayer.add(R, r, [0, 2]);
     }
+
+    // Southern spur: NS tiles connecting the top switch (7,4) down to the bottom rail
+    for (let r = T + 1; r < B; r++) {
+      this.trackLayer.add(7, r, [0, 2]);
+    }
+    // Replace plain EW at (7,8) with sw-wen: entry=W, exits=[E, N]
+    this.trackLayer.addSwitch(7, B, 3, [1, 0]);
+
+    // East side station: replace NS at (12,6) with sw-nse: entry=N, exits=[S, E]
+    this.trackLayer.addSwitch(R, 6, 0, [2, 1]);
+    // Horizontal station just east of the loop
+    this.trackLayer.addStation(R + 1, 6, "h");
   }
 
   // ── Grid ──────────────────────────────────────────────────────

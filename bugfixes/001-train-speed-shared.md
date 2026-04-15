@@ -1,0 +1,3 @@
+# Bug 001 — Train speed was shared across all trains
+
+When a fast train catches up to a slower one and enters the "blocked" state, it visually appears to match the slower train's speed. Root cause: after a blocked train successfully advances to the next tile, its state is never reset from "blocked" back to "moving". On the next frame the blocked handler fires again and calls advanceToNextTile() immediately, skipping the normal progress-based traversal. The train lunges forward tile-by-tile each frame and immediately re-blocks on the slow train, making it look like both trains are running at the same speed. Fix: reset state to "moving" after a successful commit in advanceToNextTile.
