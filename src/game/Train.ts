@@ -33,6 +33,9 @@ export class Train {
   private readonly carColour: number;
   private readonly carDarkColour: number;
 
+  private overviewDot: Phaser.GameObjects.Graphics;
+  private overviewMode = false;
+
   // All tiles currently claimed by this train (loco + car positions)
   private claimedTiles = new Set<string>();
 
@@ -60,6 +63,7 @@ export class Train {
     this.registry.claim(startKey, this.id);
     this.claimedTiles.add(startKey);
 
+    this.overviewDot = this.scene.add.graphics().setDepth(6).setVisible(false);
     this.container = this.buildLoco();
     for (let i = 0; i < NUM_CARS; i++) this.cars.push(this.buildCar());
     this.draw();
@@ -152,6 +156,15 @@ export class Train {
     }
   }
 
+  setOverviewMode(overview: boolean): void {
+    this.overviewMode = overview;
+    this.container.setVisible(!overview);
+    for (const car of this.cars) car.setVisible(!overview);
+    this.overviewDot.setVisible(overview);
+    if (!overview) this.overviewDot.clear();
+    this.draw();
+  }
+
   /** Release all claims and destroy sprites. Call before removing from the scene. */
   destroy(): void {
     for (const key of this.claimedTiles) this.registry.release(key);
@@ -163,6 +176,7 @@ export class Train {
       this.trackLayer.setStationOccupied(seg.stationId, false);
     }
 
+    this.overviewDot.destroy();
     this.container.destroy();
     for (const car of this.cars) car.destroy();
   }
@@ -358,16 +372,22 @@ export class Train {
     if (!seg) return;
 
     const { x, y, rot } = this.computePosRot(seg, this.progress, this.fromSide);
-    this.container.setPosition(x, y);
-    this.container.setRotation(rot);
+    this.container.setPosition(x, y).setRotation(rot);
 
     for (let i = 0; i < this.cars.length; i++) {
       const pos = this.getCarPosition((i + 1) * CAR_SPACING);
-      if (pos) {
+      if (pos && !this.overviewMode) {
         this.cars[i].setVisible(true).setPosition(pos.x, pos.y).setRotation(pos.rot);
       } else {
         this.cars[i].setVisible(false);
       }
+    }
+
+    if (this.overviewMode) {
+      // 5px diameter at zoom 0.125 → 40px world diameter → 20px radius
+      this.overviewDot.clear();
+      this.overviewDot.fillStyle(this.colour, 1);
+      this.overviewDot.fillCircle(x, y, 20);
     }
   }
 

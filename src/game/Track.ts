@@ -78,6 +78,11 @@ const COL_PLATFORM_SURFACE = 0xcec0ac;
 const COL_PLATFORM_ROOF    = 0x8a7e70;
 const COL_PLATFORM_EDGE    = 0xf0d040;
 
+const OVERVIEW_TRACK_W   = Math.round(2 / 0.125); // 2px screen at Far zoom
+const OVERVIEW_STATION_W = Math.round(3 / 0.125); // 3px screen at Far zoom
+const OVERVIEW_TRACK_COL   = 0x888888;
+const OVERVIEW_STATION_COL = 0x4488ff;
+
 export class TrackLayer {
   private segments = new Map<string, Segment>();
   private graphics: Phaser.GameObjects.Graphics;
@@ -85,6 +90,7 @@ export class TrackLayer {
   private stationOccupied = new Map<string, boolean>();
   private nameTexts        = new Map<string, Phaser.GameObjects.Text>();
   private nextStationId    = 0;
+  private overviewMode     = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene    = scene;
@@ -173,14 +179,70 @@ export class TrackLayer {
     return this.segments.has(tileKey(col, row));
   }
 
+  setOverviewMode(overview: boolean): void {
+    this.overviewMode = overview;
+    for (const text of this.nameTexts.values()) text.setVisible(!overview);
+    this.redraw();
+  }
+
   // ── Redraw ────────────────────────────────────────────────────
 
   private redraw(): void {
     this.graphics.clear();
+    if (this.overviewMode) {
+      this.redrawOverview();
+      return;
+    }
     for (const seg of this.segments.values()) {
-      if (isSwitch(seg))   this.drawSwitch(seg);
-      else if (isStation(seg)) this.drawStation(seg);
-      else                 this.drawTrack(seg);
+      if (isSwitch(seg))        this.drawSwitch(seg);
+      else if (isStation(seg))  this.drawStation(seg);
+      else                      this.drawTrack(seg);
+    }
+  }
+
+  private redrawOverview(): void {
+    for (const seg of this.segments.values()) {
+      if (isStation(seg)) {
+        const [a, b] = seg.connections;
+        this.drawOverviewLine(seg.col, seg.row, a, b, OVERVIEW_STATION_W, OVERVIEW_STATION_COL);
+      } else if (isSwitch(seg)) {
+        this.drawOverviewLine(seg.col, seg.row, seg.entry, seg.activeExit, OVERVIEW_TRACK_W, OVERVIEW_TRACK_COL);
+      } else {
+        const [a, b] = seg.connections;
+        this.drawOverviewLine(seg.col, seg.row, a, b, OVERVIEW_TRACK_W, OVERVIEW_TRACK_COL);
+      }
+    }
+  }
+
+  private drawOverviewLine(
+    col: number, row: number,
+    sideA: Side, sideB: Side,
+    lineW: number, color: number
+  ): void {
+    const { x: cx, y: cy } = tileToWorld(col, row);
+    const half = TILE_SIZE / 2;
+
+    this.graphics.lineStyle(lineW, color, 1);
+
+    if (OPPOSITE[sideA] === sideB) {
+      const pA = this.sidePoint(cx, cy, sideA, half);
+      const pB = this.sidePoint(cx, cy, sideB, half);
+      this.graphics.beginPath();
+      this.graphics.moveTo(pA.x, pA.y);
+      this.graphics.lineTo(pB.x, pB.y);
+      this.graphics.strokePath();
+    } else {
+      const corner = curveCorner(cx, cy, sideA, sideB, half);
+      const pA = this.sidePoint(cx, cy, sideA, half);
+      const pB = this.sidePoint(cx, cy, sideB, half);
+      const startAngle = Math.atan2(pA.y - corner.y, pA.x - corner.x);
+      const endAngle   = Math.atan2(pB.y - corner.y, pB.x - corner.x);
+      let delta = endAngle - startAngle;
+      if (delta >  Math.PI) delta -= 2 * Math.PI;
+      if (delta < -Math.PI) delta += 2 * Math.PI;
+      this.graphics.beginPath();
+      this.graphics.arc(corner.x, corner.y, half, startAngle, endAngle, delta < 0);
+      this.graphics.strokePath();
     }
   }
 

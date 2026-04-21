@@ -1,11 +1,13 @@
 import Phaser from "phaser";
 import { Camera } from "../engine/Camera";
+import { ZoomManager } from "../engine/ZoomManager";
 import { TrackLayer, Side, isSwitch } from "./Track";
 import { Train } from "./Train";
 import { TrainRegistry } from "./TrainRegistry";
 import { TrainPanel, TrainInfo } from "./TrainPanel";
 import { worldToTile, tileToWorld, TILE_SIZE } from "./Grid";
 import { drawMiniTool } from "./MiniTrack";
+import { ZoomHUD } from "../ui/ZoomHUD";
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
@@ -101,6 +103,11 @@ export class GameScene extends Phaser.Scene {
   private deleteKey!: Phaser.Input.Keyboard.Key;
   private aKey!: Phaser.Input.Keyboard.Key;
   private sKey!: Phaser.Input.Keyboard.Key;
+  private oKey!: Phaser.Input.Keyboard.Key;
+  private pKey!: Phaser.Input.Keyboard.Key;
+  private zoomManager!: ZoomManager;
+  private zoomHud!: ZoomHUD;
+  private gridGfx!: Phaser.GameObjects.Graphics;
 
   // ── Tile selection ────────────────────────────────────────────
   private selectedCol: number | null = null;
@@ -110,8 +117,13 @@ export class GameScene extends Phaser.Scene {
 
   constructor() { super("GameScene"); }
 
+  private clampCamera(): void {
+    const gridPx = 80 * TILE_SIZE;
+    this.cameras.main.setBounds(0, 0, gridPx, gridPx);
+  }
+
   create(): void {
-    this.cameras.main.setBounds(-2000, -2000, 6000, 6000);
+    this.clampCamera();
 
     this.drawGrid();
     this.trackLayer   = new TrackLayer(this);
@@ -126,6 +138,10 @@ export class GameScene extends Phaser.Scene {
     this.aKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A);
     this.sKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S);
     this.deleteKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+    this.oKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.O);
+    this.pKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.P);
+
+    this.zoomManager = new ZoomManager();
 
     this.input.keyboard!.on("keydown-ESC", () => {
       if (this.placementMode) this.exitPlacementMode();
@@ -152,9 +168,14 @@ export class GameScene extends Phaser.Scene {
       })
       .setScrollFactor(0).setDepth(10);
 
+    this.zoomHud = new ZoomHUD(this, this.zoomManager, () => this.handleZoom("cycle"));
+
     this.updateStatus();
 
-    this.events.on("shutdown", () => this.trainPanel.destroy());
+    this.events.on("shutdown", () => {
+      this.trainPanel.destroy();
+      this.zoomHud.destroy();
+    });
   }
 
   // ── Starter map ───────────────────────────────────────────────
@@ -198,6 +219,7 @@ export class GameScene extends Phaser.Scene {
 
   private drawGrid(): void {
     const g = this.add.graphics();
+    this.gridGfx = g;
     g.lineStyle(1, 0x3a7a34, 0.4);
     for (let c = 0; c <= 80; c++) {
       g.beginPath(); g.moveTo(c * TILE_SIZE, 0); g.lineTo(c * TILE_SIZE, 80 * TILE_SIZE); g.strokePath();
@@ -396,6 +418,7 @@ export class GameScene extends Phaser.Scene {
       col, row, fromSide
     );
     train.setSpeed(6);
+    if (this.zoomManager.isOverview) train.setOverviewMode(true);
     this.trains.push(train);
     this.selectedTrainId = id;
   }
@@ -434,6 +457,23 @@ export class GameScene extends Phaser.Scene {
     if ((a === 1 || a === 3) && (b === 1 || b === 3)) return 1; // EW
     if ((a === 0 || a === 2) && (b === 0 || b === 2)) return 0; // NS
     return a; // curve — use first connection
+  }
+
+  // ── Zoom ──────────────────────────────────────────────────────
+
+  private handleZoom(dir: "in" | "out" | "cycle"): void {
+    const ptr = this.input.activePointer;
+    if      (dir === "in")   this.zoomManager.zoomIn(this, ptr);
+    else if (dir === "out")  this.zoomManager.zoomOut(this, ptr);
+    else                     this.zoomManager.cycleForward(this, ptr);
+
+    this.clampCamera();
+
+    const ov = this.zoomManager.isOverview;
+    this.gridGfx.setVisible(!ov);
+    this.trackLayer.setOverviewMode(ov);
+    for (const train of this.trains) train.setOverviewMode(ov);
+    this.zoomHud.update();
   }
 
   // ── Click handler ─────────────────────────────────────────────
@@ -523,7 +563,9 @@ export class GameScene extends Phaser.Scene {
     this.trainPanel.render(infos, this.selectedTrainId);
 
     if (Phaser.Input.Keyboard.JustDown(this.aKey)) this.cycleTool(-1);
-    if (Phaser.Input.Keyboard.JustDown(this.sKey))  this.cycleTool(1);
+    if (Phaser.Input.Keyboard.JustDown(this.sKey)) this.cycleTool(1);
+    if (Phaser.Input.Keyboard.JustDown(this.oKey)) this.handleZoom("out");
+    if (Phaser.Input.Keyboard.JustDown(this.pKey)) this.handleZoom("in");
 
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
       if (this.selectedCol !== null && this.selectedRow !== null) {
