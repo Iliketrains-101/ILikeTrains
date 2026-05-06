@@ -35,8 +35,13 @@ export class ZoomHUD {
     this.redrawBg(false);
   }
 
-  update(): void {
+  update(zoom: number): void {
     this.text.setText(this.zoom.label);
+    const bx = window.innerWidth  - this.W - 10;
+    const by = window.innerHeight - this.H - 10;
+    this.bg.setScale(1 / zoom);
+    this.text.setPosition((bx + this.W / 2) / zoom, (by + this.H / 2) / zoom).setScale(1 / zoom);
+    this.hit.setPosition(bx / zoom, by / zoom).setScale(1 / zoom);
   }
 
   destroy(): void {

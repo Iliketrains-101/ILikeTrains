@@ -98,6 +98,7 @@ export class GameScene extends Phaser.Scene {
   private activeTool: Tool = "track-ns";
   private toolBtnBgs: Phaser.GameObjects.Graphics[] = [];
   private toolBtnW:   number[] = [];
+  private uiItems: Array<{ go: { setPosition(x: number, y: number): any; setScale(s: number): any }, bx: number, by: number }> = [];
   private statusText!: Phaser.GameObjects.Text;
   private spaceKey!: Phaser.Input.Keyboard.Key;
   private deleteKey!: Phaser.Input.Keyboard.Key;
@@ -116,6 +117,20 @@ export class GameScene extends Phaser.Scene {
   private deleteTileBtn!: Phaser.GameObjects.Text;
 
   constructor() { super("GameScene"); }
+
+  private registerUI<T extends { setPosition(x: number, y: number): any; setScale(s: number): any }>(go: T, bx: number, by: number): T {
+    this.uiItems.push({ go, bx, by });
+    return go;
+  }
+
+  private rescaleUI(): void {
+    const z = this.zoomManager.zoomFactor;
+    for (const { go, bx, by } of this.uiItems) {
+      go.setPosition(bx / z, by / z);
+      go.setScale(1 / z);
+    }
+    this.zoomHud.update(z);
+  }
 
   private clampCamera(): void {
     const gridPx = 80 * TILE_SIZE;
@@ -167,6 +182,7 @@ export class GameScene extends Phaser.Scene {
         backgroundColor: "#00000088", padding: { x: 6, y: 3 },
       })
       .setScrollFactor(0).setDepth(10);
+    this.registerUI(this.statusText, 10, window.innerHeight - 30);
 
     this.zoomHud = new ZoomHUD(this, this.zoomManager, () => this.handleZoom("cycle"));
 
@@ -250,8 +266,9 @@ export class GameScene extends Phaser.Scene {
       x += this.btnW(tool) + 4;
     });
 
-    this.add.graphics().fillStyle(0x666666, 1).fillRect(x + 4, 6, 2, this.BTN_H - 4)
+    const sep1 = this.add.graphics().fillStyle(0x666666, 1).fillRect(x + 4, 6, 2, this.BTN_H - 4)
       .setScrollFactor(0).setDepth(10);
+    this.registerUI(sep1, 0, 0);
     x += 14;
 
     SWITCH_LIST.forEach(tool => {
@@ -259,8 +276,9 @@ export class GameScene extends Phaser.Scene {
       x += this.btnW(tool) + 4;
     });
 
-    this.add.graphics().fillStyle(0x666666, 1).fillRect(x + 4, 6, 2, this.BTN_H - 4)
+    const sep2 = this.add.graphics().fillStyle(0x666666, 1).fillRect(x + 4, 6, 2, this.BTN_H - 4)
       .setScrollFactor(0).setDepth(10);
+    this.registerUI(sep2, 0, 0);
     x += 14;
 
     STATION_LIST.forEach(tool => {
@@ -277,16 +295,19 @@ export class GameScene extends Phaser.Scene {
 
     const bgGfx = this.add.graphics().setScrollFactor(0).setDepth(10);
     this.drawBtnBg(bgGfx, w, h, 0x2d2d2d);
+    bgGfx.setPosition(x, 6);
+    this.registerUI(bgGfx, x, 6);
 
     const trackGfx = this.add.graphics().setScrollFactor(0).setDepth(10);
     drawMiniTool(trackGfx, tool, w, h);
     trackGfx.setPosition(x, 6);
-    bgGfx.setPosition(x, 6);
+    this.registerUI(trackGfx, x, 6);
 
     const hit = this.add.rectangle(x + w / 2, 6 + h / 2, w, h)
       .setScrollFactor(0).setDepth(11)
       .setInteractive({ useHandCursor: true });
     hit.on("pointerdown", () => this.setTool(tool));
+    this.registerUI(hit, x + w / 2, 6 + h / 2);
 
     this.toolBtnBgs.push(bgGfx);
     this.toolBtnW.push(w);
@@ -338,6 +359,7 @@ export class GameScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true })
       .setVisible(false);
 
+    this.registerUI(this.deleteTileBtn, 10, window.innerHeight - 62);
     this.deleteTileBtn.on("pointerdown", () => this.deleteSelectedTile());
   }
 
@@ -473,7 +495,7 @@ export class GameScene extends Phaser.Scene {
     this.gridGfx.setVisible(!ov);
     this.trackLayer.setOverviewMode(ov);
     for (const train of this.trains) train.setOverviewMode(ov);
-    this.zoomHud.update();
+    this.rescaleUI();
   }
 
   // ── Click handler ─────────────────────────────────────────────
