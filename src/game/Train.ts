@@ -230,6 +230,7 @@ export class Train {
     this.row      = nextRow;
     this.fromSide = nextFromSide;
     this.progress = 0;
+    this.state    = "moving";
 
     // Recompute full-train occupancy; releases tiles the cars no longer cover
     this.updateOccupancy();
