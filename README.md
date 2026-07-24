@@ -67,4 +67,4 @@ docs/decisions/    # Architecture Decision Records (ADRs)
 | 006 | Industries + cargo | planned |
 | 007 | Visual style overhaul | planned |
 | 008 | Sound | planned |
-| 009 | Zoom levels | planned |
+| 009 | Zoom levels | done |
